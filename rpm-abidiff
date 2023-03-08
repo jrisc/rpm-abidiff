@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+if [ $# -ne 2 ]; then
+    cat >&2 <<EOF
+Error: 2 arguments exprected
+Usage:
+
+    $(basename "$0") [old RPMs folder] [new RPMs folder]
+
+EOF
+    exit 1
+fi
+
+exec 2>/dev/null
+tmp="$(mktemp -d)"
+trap "rm -rf ${tmp}" EXIT
+
+mkdir "${tmp}/old"
+pushd >&2 "${tmp}/old"
+for rpm in "$1"/*.rpm; do
+  echo "## $(basename "$rpm")"
+  rpm2cpio "$rpm" | cpio -idmv
+done
+popd >&2
+
+cat <<EOF
+##
+## compared with
+##
+EOF
+
+mkdir "${tmp}/new"
+pushd >&2 "${tmp}/new"
+for rpm in "$2"/*.rpm; do
+  echo "## $(basename "$rpm")"
+  rpm2cpio "$rpm" | cpio -idmv
+done
+popd >&2
+
+echo
+
+pushd >&2 "${tmp}/old"
+oldsofiles="$(find -type f \( -name '*.so.*' -or -name '*.so' \) -and -not -name '*.debug')"
+popd >&2
+
+for f in $oldsofiles; do
+  f="$(echo "$f" | sed 's|^\./|/|')"
+  if [ -e "${tmp}/new/$f" ]; then
+    echo "# $f"
+    abidiff --d1 "${tmp}/old/usr/lib/debug" --d2 "${tmp}/new/usr/lib/debug" "${tmp}/old/$f" "${tmp}/new/$f" || true
+  else
+    echo "# Removed $f"
+  fi
+done
