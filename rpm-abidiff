@@ -17,12 +17,10 @@ tmp="$(mktemp -d)"
 trap "rm -rf ${tmp}" EXIT
 
 mkdir "${tmp}/old"
-pushd >&2 "${tmp}/old"
 for rpm in "$1"/*.rpm; do
   echo "## $(basename "$rpm")"
-  rpm2cpio "$rpm" | cpio -idmv
+  rpm2cpio "$rpm" | cpio -idmv -D "${tmp}/old/"
 done
-popd >&2
 
 cat <<EOF
 ##
@@ -31,12 +29,10 @@ cat <<EOF
 EOF
 
 mkdir "${tmp}/new"
-pushd >&2 "${tmp}/new"
 for rpm in "$2"/*.rpm; do
   echo "## $(basename "$rpm")"
-  rpm2cpio "$rpm" | cpio -idmv
+  rpm2cpio "$rpm" | cpio -idmv -D "${tmp}/new/"
 done
-popd >&2
 
 echo
 
